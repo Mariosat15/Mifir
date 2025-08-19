@@ -1,0 +1,39 @@
+{
+  "field_mappings": {
+    "reporting_party_lei": "[Constant Value]",
+    "transaction_id": "transaction_id",
+    "instrument_isin": "instrument_isin",
+    "execution_datetime": "execution_datetime",
+    "trade_datetime": "trade_datetime",
+    "price_amount": "price_amount",
+    "quantity": "quantity",
+    "trading_venue": "[Constant Value]",
+    "trading_capacity": "[Constant Value]",
+    "price_currency": "[Constant Value]",
+    "instrument_cfi": "[Constant Value]",
+    "buyer_lei": "buyer_lei",
+    "seller_lei": "seller_lei"
+  },
+  "constants": {
+    "from_org_id": "KD",
+    "to_org_id": "CY",
+    "biz_msg_id": "KD_DATTRA_test_mapping",
+    "reporting_party_lei": "213800ABCDEFGHIJ1234",
+    "trading_venue": "XOFF",
+    "trading_capacity": "PRIN",
+    "price_currency": "USD",
+    "instrument_cfi": "FXXXXX"
+  },
+  "custom_fields": "[]",
+  "created_date": "2025-08-19 09:15:24",
+  "data_columns": [
+    "transaction_id",
+    "execution_datetime",
+    "trade_datetime",
+    "price_amount",
+    "quantity",
+    "instrument_isin",
+    "buyer_lei",
+    "seller_lei"
+  ]
+}

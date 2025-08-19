@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BizData xmlns="urn:iso:std:iso:20022:tech:xsd:head.003.001.01" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:iso:std:iso:20022:tech:xsd:head.003.001.01 head.003.001.01.xsd">
+  <Hdr>
+    <AppHdr xmlns="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:iso:std:iso:20022:tech:xsd:head.001.001.01 head.001.001.01_ESMAUG_1.0.0.xsd">
+      <Fr>
+        <OrgId>
+          <Id>
+            <OrgId>
+              <Othr>
+                <Id>KD</Id>
+              </Othr>
+            </OrgId>
+          </Id>
+        </OrgId>
+      </Fr>
+      <To>
+        <OrgId>
+          <Id>
+            <OrgId>
+              <Othr>
+                <Id>CY</Id>
+              </Othr>
+            </OrgId>
+          </Id>
+        </OrgId>
+      </To>
+      <BizMsgIdr>KD_DATTRA_generated_20250819_100536</BizMsgIdr>
+      <MsgDefIdr>auth.016.001.01</MsgDefIdr>
+      <CreDt>2025-08-19T10:05:36Z</CreDt>
+    </AppHdr>
+  </Hdr>
+  <Pyld>
+    <Document xmlns="urn:iso:std:iso:20022:tech:xsd:auth.016.001.01" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:iso:std:iso:20022:tech:xsd:auth.016.001.01 auth.016.001.01_ESMAUG_Reporting_1.1.0.xsd">
+      <FinInstrmRptgTxRpt>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000000</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000001</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000002</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000003</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000004</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000005</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000006</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000007</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000008</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000009</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000010</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000011</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000012</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000013</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000014</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000015</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000016</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000017</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000018</martha>
+          </New>
+        </Tx>
+        <Tx>
+          <New>
+            <martha data-category="required">TXN_1000019</martha>
+          </New>
+        </Tx>
+      </FinInstrmRptgTxRpt>
+    </Document>
+  </Pyld>
+</BizData>
