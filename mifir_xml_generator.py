@@ -101,175 +101,234 @@ class MiFIRXMLGenerator:
     
     def _add_mifir_transaction(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
                               constants: Dict[str, str], custom_field_manager: CustomFieldManager = None):
-        """Add a single MiFIR compliant transaction."""
+        """Add a single MiFIR compliant transaction following ESMAUG 1.1.0 schema order."""
         tx = SubElement(parent, "Tx")
         new = SubElement(tx, "New")
         
-        # A) Reporting/Envelope Fields
-        # Reporting Party (always include, use default if not mapped)
-        rptg_pty = SubElement(new, "RptgPrty")
-        lei = SubElement(rptg_pty, "LEI")
-        if self._has_mapping("reporting_party_lei", field_mappings):
-            lei.text = self._get_mapped_value("reporting_party_lei", row, field_mappings, constants)
-        else:
-            lei.text = constants.get("reporting_party_lei", "YOUR_FIRM_LEI_HERE")
+        # ESMAUG 1.1.0 SCHEMA ORDER - MUST FOLLOW EXACT SEQUENCE
         
-        # Technical Record ID (auto-generate if not provided)
-        tech_rcrd_id = SubElement(new, "TechRcrdId")
-        if self._has_mapping("tech_record_id", field_mappings):
-            tech_rcrd_id.text = self._get_mapped_value("tech_record_id", row, field_mappings, constants)
-        else:
-            # Auto-generate unique tech record ID
-            tech_rcrd_id.text = f"TXN_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(str(row.to_dict())) % 10000}"
-        
-        # Transaction ID (always include, auto-generate if not mapped)
+        # 1. TxId (MUST BE FIRST) - Schema pattern: [A-Z0-9]{1,52}
         tx_id = SubElement(new, "TxId")
         if self._has_mapping("transaction_id", field_mappings):
-            tx_id.text = self._get_mapped_value("transaction_id", row, field_mappings, constants)
+            tx_id_value = self._get_mapped_value("transaction_id", row, field_mappings, constants)
+            # Clean TxId to match schema pattern (only A-Z and 0-9, max 52 chars)
+            clean_tx_id = ''.join(c for c in tx_id_value.upper() if c.isalnum())[:52]
+            tx_id.text = clean_tx_id if clean_tx_id else "AUTOTXN001"
         else:
-            # Auto-generate transaction ID
-            tx_id.text = f"AUTO_TXN_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(str(row.to_dict())) % 10000}"
+            # Generate schema-compliant auto ID
+            auto_id = f"AUTOTXN{datetime.now().strftime('%Y%m%d%H%M%S')}{hash(str(row.to_dict())) % 1000:03d}"
+            tx_id.text = auto_id[:52]  # Ensure max 52 characters
         
-        # Financial Instrument
-        self._add_financial_instrument(new, row, field_mappings, constants)
-        
-        # C) Execution details
-        # Execution Date Time (always include, use current time if not mapped)
-        exctn_dt_tm = SubElement(new, "ExctnDtTm")
-        if self._has_mapping("execution_datetime", field_mappings):
-            exctn_dt_tm.text = self._format_datetime(
-                self._get_mapped_value("execution_datetime", row, field_mappings, constants)
-            )
+        # 2. ExctgPty (Executing Party LEI)
+        exctg_pty = SubElement(new, "ExctgPty")
+        if self._has_mapping("executing_party", field_mappings):
+            exctg_pty.text = self._get_mapped_value("executing_party", row, field_mappings, constants)
         else:
-            exctn_dt_tm.text = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            # Use reporting party LEI as executing party
+            exctg_pty.text = self._get_mapped_value("reporting_party_lei", row, field_mappings, constants) or "YOUR_FIRM_LEI_HERE"
         
-        # Trade Date Time (always include, use execution time if not mapped)
-        trad_dt_tm = SubElement(new, "TradDtTm")
+        # 3. InvstmtPtyInd (Investment Party Indicator)
+        invstmt_pty_ind = SubElement(new, "InvstmtPtyInd")
+        if self._has_mapping("investment_party_ind", field_mappings):
+            invstmt_pty_ind.text = self._get_mapped_value("investment_party_ind", row, field_mappings, constants)
+        else:
+            invstmt_pty_ind.text = "true"  # Default
+        
+        # 4. SubmitgPty (Submitting Party LEI) - This is where RptgPrty LEI goes
+        submitg_pty = SubElement(new, "SubmitgPty")
+        if self._has_mapping("reporting_party_lei", field_mappings):
+            submitg_pty.text = self._get_mapped_value("reporting_party_lei", row, field_mappings, constants)
+        else:
+            submitg_pty.text = constants.get("reporting_party_lei", "YOUR_FIRM_LEI_HERE")
+        
+        # 5. Buyer (Schema position 5)
+        self._add_buyer(new, row, field_mappings, constants)
+        
+        # 6. Seller (Schema position 6)
+        self._add_seller(new, row, field_mappings, constants)
+        
+        # 7. OrdrTrnsmssn (Order Transmission)
+        ordr_trnsmssn = SubElement(new, "OrdrTrnsmssn")
+        trnsmssn_ind = SubElement(ordr_trnsmssn, "TrnsmssnInd")
+        if self._has_mapping("transmission_indicator", field_mappings):
+            trnsmssn_ind.text = self._get_mapped_value("transmission_indicator", row, field_mappings, constants)
+        else:
+            trnsmssn_ind.text = "false"  # Default
+        
+        # 8. Tx (Trading details - MUST be under New/Tx per schema)
+        tx_details = SubElement(new, "Tx")
+        
+        # TradDt (Trade Date - inside Tx block)
+        trad_dt = SubElement(tx_details, "TradDt")
         if self._has_mapping("trade_datetime", field_mappings):
-            trad_dt_tm.text = self._format_datetime(
+            trad_dt.text = self._format_datetime(
                 self._get_mapped_value("trade_datetime", row, field_mappings, constants)
             )
         else:
-            trad_dt_tm.text = exctn_dt_tm.text  # Use same as execution time
+            trad_dt.text = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         
-        # Settlement Date
-        if self._has_mapping("settlement_date", field_mappings):
-            sttlm_dt = SubElement(new, "SttlmDt")
-            sttlm_dt.text = self._get_mapped_value("settlement_date", row, field_mappings, constants)
-        
-        # Trading Venue
-        trad_vn = SubElement(new, "TradgVn")
-        mic = SubElement(trad_vn, "MIC")
-        if self._has_mapping("trading_venue", field_mappings):
-            mic.text = self._get_mapped_value("trading_venue", row, field_mappings, constants)
-        else:
-            mic.text = "XOFF"  # Default: OTC/off-venue for crypto exchanges
-        
-        # Trading Capacity
-        trad_cpcty = SubElement(new, "TradgCpcty")
+        # TradgCpcty (Trading Capacity - MUST be DEAL/MTCH/AOTC)
+        trad_cpcty = SubElement(tx_details, "TradgCpcty")
         if self._has_mapping("trading_capacity", field_mappings):
-            trad_cpcty.text = self._get_mapped_value("trading_capacity", row, field_mappings, constants)
+            capacity_value = self._get_mapped_value("trading_capacity", row, field_mappings, constants)
+            # Map common values to schema-compliant values
+            if capacity_value.lower() in ['buy', 'sell', 'prin', 'principal']:
+                trad_cpcty.text = "AOTC"  # Any other capacity
+            elif capacity_value.upper() in ['DEAL', 'MTCH', 'AOTC']:
+                trad_cpcty.text = capacity_value.upper()
+            else:
+                trad_cpcty.text = "AOTC"  # Default
         else:
-            trad_cpcty.text = "PRIN"  # Default: Principal
+            trad_cpcty.text = "AOTC"  # Default
         
-        # Price (always include, use default if not mapped)
-        self._add_price(new, row, field_mappings, constants)
-        
-        # Quantity (always include, use default if not mapped)
-        qty = SubElement(new, "Qty")
+        # Qty (Quantity - inside Tx block)
+        qty = SubElement(tx_details, "Qty")
+        unit = SubElement(qty, "Unit")
         if self._has_mapping("quantity", field_mappings):
-            qty.text = self._get_mapped_value("quantity", row, field_mappings, constants)
+            unit.text = self._get_mapped_value("quantity", row, field_mappings, constants)
         else:
-            qty.text = "1.0"  # Default quantity
+            unit.text = "1.0"
         
-        # Buyer (always include if mapped)
-        self._add_buyer(new, row, field_mappings, constants)
+        # Pric (Price - inside Tx block) - Schema-compliant structure
+        pric = SubElement(tx_details, "Pric")
+        pric_inner = SubElement(pric, "Pric")
+        mntry_val = SubElement(pric_inner, "MntryVal")
         
-        # Seller (always include if mapped)
-        self._add_seller(new, row, field_mappings, constants)
-        
-        # F) Flags & indicators (provide defaults for crypto derivatives)
-        # Short Sale Indicator
-        shrt_sellg_ind = SubElement(new, "ShrtSellgInd")
-        if self._has_mapping("short_sale_indicator", field_mappings):
-            shrt_sellg_ind.text = self._get_mapped_value("short_sale_indicator", row, field_mappings, constants)
-        else:
-            shrt_sellg_ind.text = "NSHO"  # Default: Not a short sale (N/A for crypto derivatives)
-        
-        # Commodity Derivative Indicator
-        cmmdty_deriv_ind = SubElement(new, "CmmdtyDerivInd")
-        if self._has_mapping("commodity_derivative_indicator", field_mappings):
-            cmmdty_deriv_ind.text = self._get_mapped_value("commodity_derivative_indicator", row, field_mappings, constants)
-        else:
-            cmmdty_deriv_ind.text = "N"  # Default: Not a commodity derivative
-        
-        # Clearing Indicator
-        clrng_ind = SubElement(new, "ClrngInd")
-        if self._has_mapping("clearing_indicator", field_mappings):
-            clrng_ind.text = self._get_mapped_value("clearing_indicator", row, field_mappings, constants)
-        else:
-            clrng_ind.text = "N"  # Default: Not cleared
-        
-        # Securities Financing Indicator
-        scties_fincg_tx_ind = SubElement(new, "SctiesFincgTxInd")
-        if self._has_mapping("securities_financing_indicator", field_mappings):
-            scties_fincg_tx_ind.text = self._get_mapped_value("securities_financing_indicator", row, field_mappings, constants)
-        else:
-            scties_fincg_tx_ind.text = "N"  # Default: Not SFT
-        
-        # G) Firm/branch context
-        if self._has_mapping("country_of_branch", field_mappings):
-            ctry_of_brnch = SubElement(new, "CtryOfBrnch")
-            ctry_of_brnch.text = self._get_mapped_value("country_of_branch", row, field_mappings, constants)
-        
-        if self._has_mapping("investment_firm_covered", field_mappings):
-            invstmt_firm_cvrd = SubElement(new, "InvstmtFirmCvrd")
-            invstmt_firm_cvrd.text = self._get_mapped_value("investment_firm_covered", row, field_mappings, constants)
-        
-        # Add ALL other mapped fields (conditional, optional, etc.)
-        self._add_all_mapped_fields(new, row, field_mappings, constants)
-        
-        # Add custom fields
-        if custom_field_manager:
-            self._add_custom_fields(new, row, field_mappings, constants, custom_field_manager)
-    
-    def _add_financial_instrument(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
-                                 constants: Dict[str, str]):
-        """Add financial instrument identification."""
-        # Financial Instrument (always include, use default if not mapped)
-        fin_instrm_id = SubElement(parent, "FinInstrmId")
-        id_elem = SubElement(fin_instrm_id, "Id")
-        isin = SubElement(id_elem, "ISIN")
-        
-        if self._has_mapping("instrument_isin", field_mappings):
-            isin.text = self._get_mapped_value("instrument_isin", row, field_mappings, constants)
-        else:
-            isin.text = constants.get("instrument_isin", "SAMPLE_ISIN_123456789012")
-        
-        # CFI code (provide default if not mapped)
-        cfi = SubElement(fin_instrm_id, "CFI")
-        if self._has_mapping("instrument_cfi", field_mappings):
-            cfi.text = self._get_mapped_value("instrument_cfi", row, field_mappings, constants)
-        else:
-            cfi.text = "FXXXXX"  # Default CFI code
-    
-    def _add_price(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
-                   constants: Dict[str, str]):
-        """Add price information."""
-        # Price (always include, use default if not mapped)
-        pric = SubElement(parent, "Pric")
-        amt = SubElement(pric, "Amt")
-        
+        amt = SubElement(mntry_val, "Amt")
         if self._has_mapping("price_amount", field_mappings):
             amt.text = self._get_mapped_value("price_amount", row, field_mappings, constants)
         else:
-            amt.text = "100.00"  # Default price
+            amt.text = "100.00"
         
         # Currency attribute
         if self._has_mapping("price_currency", field_mappings):
             amt.set("Ccy", self._get_mapped_value("price_currency", row, field_mappings, constants))
         else:
-            amt.set("Ccy", "USD")  # Default currency for crypto derivatives
+            amt.set("Ccy", "USD")
+        
+        # Sgn (Sign indicator)
+        sgn = SubElement(mntry_val, "Sgn")
+        sgn.text = "true"  # Default positive
+        
+        # TradVn (Trading Venue - simple element, not MIC structure)
+        trad_vn = SubElement(tx_details, "TradVn")
+        if self._has_mapping("trading_venue", field_mappings):
+            trad_vn.text = self._get_mapped_value("trading_venue", row, field_mappings, constants)
+        else:
+            trad_vn.text = "XOFF"
+        
+        # 9. FinInstrm (Financial Instrument - correct ESMAUG 1.1.0 structure)
+        self._add_financial_instrument_correct(new, row, field_mappings, constants)
+        
+        # 10. ExctgPrsn (Executing Person)
+        exctg_prsn = SubElement(new, "ExctgPrsn")
+        clnt = SubElement(exctg_prsn, "Clnt")
+        if self._has_mapping("executing_person", field_mappings):
+            clnt.text = self._get_mapped_value("executing_person", row, field_mappings, constants)
+        else:
+            clnt.text = "NORE"  # Default
+        
+        # 11. AddtlAttrbts (Additional Attributes)
+        addtl_attrbts = SubElement(new, "AddtlAttrbts")
+        
+        # ShrtSellgInd (MUST be Side5Code values: SESH, SELL, SSEX, UNDI)
+        shrt_sellg_ind = SubElement(addtl_attrbts, "ShrtSellgInd")
+        if self._has_mapping("short_sale_indicator", field_mappings):
+            ssi_value = self._get_mapped_value("short_sale_indicator", row, field_mappings, constants)
+            # Map common values to schema-compliant values
+            if ssi_value.upper() in ['NSHO', 'LONG', 'BUY']:
+                shrt_sellg_ind.text = "UNDI"  # Undisclosed/not applicable
+            elif ssi_value.lower() in ['short', 'sell']:
+                shrt_sellg_ind.text = "SELL"  # Short sale
+            elif ssi_value.upper() in ['SESH', 'SELL', 'SSEX', 'UNDI']:
+                shrt_sellg_ind.text = ssi_value.upper()
+            else:
+                shrt_sellg_ind.text = "UNDI"  # Default
+        else:
+            shrt_sellg_ind.text = "UNDI"  # Default for crypto derivatives
+        
+        # SctiesFincgTxInd (Securities Financing Transaction Indicator)
+        scties_fincg_tx_ind = SubElement(addtl_attrbts, "SctiesFincgTxInd")
+        if self._has_mapping("securities_financing_indicator", field_mappings):
+            scties_fincg_tx_ind.text = self._get_mapped_value("securities_financing_indicator", row, field_mappings, constants)
+        else:
+            scties_fincg_tx_ind.text = "false"  # Default
+        
+        # Add custom fields at the end
+        if custom_field_manager:
+            self._add_custom_fields(new, row, field_mappings, constants, custom_field_manager)
+    
+    def _add_financial_instrument_correct(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
+                                         constants: Dict[str, str]):
+        """Add financial instrument with correct ESMAUG 1.1.0 structure."""
+        fin_instrm = SubElement(parent, "FinInstrm")
+        
+        # Use Othr choice for non-standard instruments
+        othr = SubElement(fin_instrm, "Othr")
+        
+        # FinInstrmGnlAttrbts
+        fin_instrm_gnl_attrbts = SubElement(othr, "FinInstrmGnlAttrbts")
+        
+        # FullNm (Instrument full name)
+        full_nm = SubElement(fin_instrm_gnl_attrbts, "FullNm")
+        if self._has_mapping("instrument_name", field_mappings):
+            full_nm.text = self._get_mapped_value("instrument_name", row, field_mappings, constants)
+        elif self._has_mapping("instrument_symbol", field_mappings):
+            full_nm.text = self._get_mapped_value("instrument_symbol", row, field_mappings, constants)
+        else:
+            full_nm.text = "CRYPTO_DERIVATIVE"
+        
+        # ClssfctnTp (Classification type)
+        clssfctn_tp = SubElement(fin_instrm_gnl_attrbts, "ClssfctnTp")
+        if self._has_mapping("classification_type", field_mappings):
+            clssfctn_tp.text = self._get_mapped_value("classification_type", row, field_mappings, constants)
+        else:
+            clssfctn_tp.text = "SESTXC"  # Default
+        
+        # NtnlCcy (Notional currency)
+        ntnl_ccy = SubElement(fin_instrm_gnl_attrbts, "NtnlCcy")
+        if self._has_mapping("notional_currency", field_mappings):
+            ntnl_ccy.text = self._get_mapped_value("notional_currency", row, field_mappings, constants)
+        else:
+            ntnl_ccy.text = "USD"  # Default
+        
+        # DerivInstrmAttrbts (for derivatives)
+        deriv_instrm_attrbts = SubElement(othr, "DerivInstrmAttrbts")
+        
+        # PricMltplr
+        pric_mltplr = SubElement(deriv_instrm_attrbts, "PricMltplr")
+        if self._has_mapping("price_multiplier", field_mappings):
+            pric_mltplr.text = self._get_mapped_value("price_multiplier", row, field_mappings, constants)
+        else:
+            pric_mltplr.text = "1"
+        
+        # UndrlygInstrm (Underlying instrument) - Schema requires Othr/Sngl/ISIN structure
+        undrlyg_instrm = SubElement(deriv_instrm_attrbts, "UndrlygInstrm")
+        
+        # Use Othr choice as required by schema
+        othr_instrm = SubElement(undrlyg_instrm, "Othr")
+        
+        # Sngl (Single instrument)
+        sngl = SubElement(othr_instrm, "Sngl")
+        
+        # ISIN goes inside Sngl
+        if self._has_mapping("instrument_isin", field_mappings):
+            isin_value = self._get_mapped_value("instrument_isin", row, field_mappings, constants)
+            isin_elem = SubElement(sngl, "ISIN")
+            isin_elem.text = isin_value
+        else:
+            # Use Id for non-ISIN instruments
+            id_elem = SubElement(sngl, "Id")
+            id_elem.text = "UNKNOWN_INSTRUMENT"
+        
+        # DlvryTp (Delivery type)
+        dlvry_tp = SubElement(deriv_instrm_attrbts, "DlvryTp")
+        if self._has_mapping("delivery_type", field_mappings):
+            dlvry_tp.text = self._get_mapped_value("delivery_type", row, field_mappings, constants)
+        else:
+            dlvry_tp.text = "CASH"
+    
+
     
     def _add_buyer(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
                    constants: Dict[str, str]):
@@ -288,9 +347,8 @@ class MiFIRXMLGenerator:
             id_elem = SubElement(acct_ownr, "Id")
             
             if has_buyer_lei or buyer_lei_value:
-                # Legal entity
-                org = SubElement(id_elem, "Org")
-                lei = SubElement(org, "LEI")
+                # Legal entity - Schema expects LEI directly, not Org/LEI
+                lei = SubElement(id_elem, "LEI")
                 lei.text = buyer_lei_value if buyer_lei_value else self._get_mapped_value("buyer_lei", row, field_mappings, constants)
             elif has_buyer_person:
                 # Natural person
@@ -341,9 +399,8 @@ class MiFIRXMLGenerator:
             id_elem = SubElement(acct_ownr, "Id")
             
             if has_seller_lei or seller_lei_value:
-                # Legal entity
-                org = SubElement(id_elem, "Org")
-                lei = SubElement(org, "LEI")
+                # Legal entity - Schema expects LEI directly, not Org/LEI
+                lei = SubElement(id_elem, "LEI")
                 lei.text = seller_lei_value if seller_lei_value else self._get_mapped_value("seller_lei", row, field_mappings, constants)
             elif has_seller_person:
                 # Natural person
