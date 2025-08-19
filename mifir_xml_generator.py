@@ -182,10 +182,10 @@ class MiFIRXMLGenerator:
         else:
             qty.text = "1.0"  # Default quantity
         
-        # Buyer
+        # Buyer (always include if mapped)
         self._add_buyer(new, row, field_mappings, constants)
         
-        # Seller
+        # Seller (always include if mapped)
         self._add_seller(new, row, field_mappings, constants)
         
         # F) Flags & indicators (provide defaults for crypto derivatives)
@@ -225,6 +225,9 @@ class MiFIRXMLGenerator:
         if self._has_mapping("investment_firm_covered", field_mappings):
             invstmt_firm_cvrd = SubElement(new, "InvstmtFirmCvrd")
             invstmt_firm_cvrd.text = self._get_mapped_value("investment_firm_covered", row, field_mappings, constants)
+        
+        # Add ALL other mapped fields (conditional, optional, etc.)
+        self._add_all_mapped_fields(new, row, field_mappings, constants)
         
         # Add custom fields
         if custom_field_manager:
@@ -271,21 +274,24 @@ class MiFIRXMLGenerator:
     def _add_buyer(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
                    constants: Dict[str, str]):
         """Add buyer information."""
-        # Determine if we have buyer information
+        # Always include buyer information if ANY buyer field is mapped
         has_buyer_lei = self._has_mapping("buyer_lei", field_mappings)
         has_buyer_person = (self._has_mapping("buyer_first_name", field_mappings) or 
                            self._has_mapping("buyer_national_id", field_mappings))
         
-        if has_buyer_lei or has_buyer_person:
+        # Include buyer section if we have any buyer mapping OR if buyer_lei has a value
+        buyer_lei_value = self._get_mapped_value("buyer_lei", row, field_mappings, constants)
+        
+        if has_buyer_lei or has_buyer_person or buyer_lei_value:
             buyr = SubElement(parent, "Buyr")
             acct_ownr = SubElement(buyr, "AcctOwnr")
             id_elem = SubElement(acct_ownr, "Id")
             
-            if has_buyer_lei:
+            if has_buyer_lei or buyer_lei_value:
                 # Legal entity
                 org = SubElement(id_elem, "Org")
                 lei = SubElement(org, "LEI")
-                lei.text = self._get_mapped_value("buyer_lei", row, field_mappings, constants)
+                lei.text = buyer_lei_value if buyer_lei_value else self._get_mapped_value("buyer_lei", row, field_mappings, constants)
             elif has_buyer_person:
                 # Natural person
                 prsn = SubElement(id_elem, "Prsn")
@@ -321,21 +327,24 @@ class MiFIRXMLGenerator:
     def _add_seller(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
                     constants: Dict[str, str]):
         """Add seller information."""
-        # Determine if we have seller information
+        # Always include seller information if ANY seller field is mapped
         has_seller_lei = self._has_mapping("seller_lei", field_mappings)
         has_seller_person = (self._has_mapping("seller_first_name", field_mappings) or 
                             self._has_mapping("seller_national_id", field_mappings))
         
-        if has_seller_lei or has_seller_person:
+        # Include seller section if we have any seller mapping OR if seller_lei has a value
+        seller_lei_value = self._get_mapped_value("seller_lei", row, field_mappings, constants)
+        
+        if has_seller_lei or has_seller_person or seller_lei_value:
             sellr = SubElement(parent, "Sellr")
             acct_ownr = SubElement(sellr, "AcctOwnr")
             id_elem = SubElement(acct_ownr, "Id")
             
-            if has_seller_lei:
+            if has_seller_lei or seller_lei_value:
                 # Legal entity
                 org = SubElement(id_elem, "Org")
                 lei = SubElement(org, "LEI")
-                lei.text = self._get_mapped_value("seller_lei", row, field_mappings, constants)
+                lei.text = seller_lei_value if seller_lei_value else self._get_mapped_value("seller_lei", row, field_mappings, constants)
             elif has_seller_person:
                 # Natural person
                 prsn = SubElement(id_elem, "Prsn")
@@ -436,6 +445,56 @@ class MiFIRXMLGenerator:
                         target_parent = parent if custom_field.parent_element == "New" else self._find_or_create_parent_element(parent, custom_field.parent_element)
                         custom_element = SubElement(target_parent, custom_field.xml_element_name)
                         custom_element.text = custom_field.default_value
+    
+    def _add_all_mapped_fields(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
+                              constants: Dict[str, str]):
+        """Add ALL mapped fields that aren't already handled by specific methods."""
+        from mifir_fields import MIFIR_FIELDS
+        
+        # Fields that are already handled by specific methods
+        handled_fields = {
+            "reporting_party_lei", "tech_record_id", "transaction_id", "instrument_isin", 
+            "instrument_cfi", "execution_datetime", "trade_datetime", "settlement_date",
+            "trading_venue", "trading_capacity", "price_amount", "price_currency", 
+            "quantity", "buyer_lei", "buyer_first_name", "buyer_last_name", 
+            "buyer_birth_date", "buyer_national_id", "buyer_country",
+            "seller_lei", "seller_first_name", "seller_last_name", 
+            "seller_birth_date", "seller_national_id", "seller_country",
+            "short_sale_indicator", "commodity_derivative_indicator", 
+            "clearing_indicator", "securities_financing_indicator",
+            "country_of_branch", "investment_firm_covered"
+        }
+        
+        # Add any other mapped fields that aren't handled yet
+        for mifir_field in MIFIR_FIELDS:
+            field_name = mifir_field.name
+            
+            # Skip if already handled by specific methods
+            if field_name in handled_fields:
+                continue
+            
+            # Skip if not mapped
+            if not self._has_mapping(field_name, field_mappings):
+                continue
+            
+            # Get the value
+            value = self._get_mapped_value(field_name, row, field_mappings, constants)
+            
+            # Only add if we have a value
+            if value and value.strip():
+                # Create element with simple name (could be enhanced for complex paths)
+                element_name = self._get_xml_element_name(mifir_field)
+                if element_name:
+                    element = SubElement(parent, element_name)
+                    element.text = value
+    
+    def _get_xml_element_name(self, mifir_field) -> str:
+        """Get simple XML element name from MiFIR field xpath."""
+        # Extract the last element from xpath
+        xpath = mifir_field.xpath
+        if '/' in xpath:
+            return xpath.split('/')[-1]
+        return xpath
     
     def _find_or_create_parent_element(self, root_parent: Element, parent_path: str) -> Element:
         """Find or create a parent element for custom fields."""
