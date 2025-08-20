@@ -399,6 +399,48 @@ MIFIR_FIELDS = [
         notes="Unique transaction identifier"
     ),
     
+    # Taker/Maker side fields for dynamic buyer/seller logic
+    MiFIRField(
+        "taker_side_ordertype_sellorbuy", 
+        "TakerSideOrderType", 
+        FieldType.ENUM, 
+        RequirementLevel.CONDITIONAL,
+        "Taker side order type (buy/sell)",
+        "buy",
+        enum_values=["buy", "sell"],
+        notes="Determines if taker is buyer or seller"
+    ),
+    
+    MiFIRField(
+        "maker_side_ordertype_sellorbuy", 
+        "MakerSideOrderType", 
+        FieldType.ENUM, 
+        RequirementLevel.CONDITIONAL,
+        "Maker side order type (buy/sell)",
+        "sell", 
+        enum_values=["buy", "sell"],
+        notes="Determines if maker is buyer or seller"
+    ),
+    
+    MiFIRField(
+        "fills_taker_user_id", 
+        "FillsTakerUserId", 
+        FieldType.STRING, 
+        RequirementLevel.CONDITIONAL,
+        "Taker user identifier",
+        "USER123456",
+        notes="User ID for taker side - can be MTF_LEI (2138005EFA978Y43G944) or user_id"
+    ),
+    
+    MiFIRField(
+        "fills_maker_user_id", 
+        "FillsMakerUserId", 
+        FieldType.STRING, 
+        RequirementLevel.CONDITIONAL,
+        "Maker user identifier", 
+        "2138005EFA978Y43G944",
+        notes="User ID for maker side - can be MTF_LEI (2138005EFA978Y43G944) or user_id"
+    ),
 
 ]
 
