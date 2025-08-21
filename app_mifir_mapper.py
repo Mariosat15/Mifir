@@ -415,6 +415,11 @@ def main():
             else:
                 df = pd.read_excel(uploaded_file)
             
+            # Fix data type issues for Streamlit display
+            # Convert all object columns to string to avoid Arrow serialization errors
+            for col in df.select_dtypes(include=['object']).columns:
+                df[col] = df[col].astype(str)
+            
             st.success(f"✅ File loaded: {len(df)} rows, {len(df.columns)} columns")
             
             # Show data preview

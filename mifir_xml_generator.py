@@ -332,222 +332,160 @@ class MiFIRXMLGenerator:
     
     def _add_buyer(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
                    constants: Dict[str, str]):
-        """Add buyer information using taker/maker side logic."""
-        MTF_LEI = "2138005EFA978Y43G944"
+        """Add buyer information with firm-specific logic."""
+        FIRM_LEI = "2138005EFA978Y43G944"
         
-        # Check taker side first
-        taker_order_type = self._get_mapped_value("taker_side_ordertype_sellorbuy", row, field_mappings, constants)
-        taker_user_id = self._get_mapped_value("fills_taker_user_id", row, field_mappings, constants)
+        # Determine buyer LEI - prefer direct mapping, fallback to taker/maker logic
+        buyer_lei = self._get_mapped_value("buyer_lei", row, field_mappings, constants)
         
-        # Check maker side
-        maker_order_type = self._get_mapped_value("maker_side_ordertype_sellorbuy", row, field_mappings, constants)
-        maker_user_id = self._get_mapped_value("fills_maker_user_id", row, field_mappings, constants)
-        
-        buyer_info = None
-        
-        # Determine buyer based on order type
-        if taker_order_type and taker_order_type.lower() == 'buy':
-            buyer_info = {'side': 'taker', 'user_id': taker_user_id, 'is_mtf': taker_user_id == MTF_LEI}
-        elif maker_order_type and maker_order_type.lower() == 'buy':
-            buyer_info = {'side': 'maker', 'user_id': maker_user_id, 'is_mtf': maker_user_id == MTF_LEI}
-        
-        # Fallback to old logic if no taker/maker data
-        if not buyer_info:
-            has_buyer_lei = self._has_mapping("buyer_lei", field_mappings)
-            has_buyer_person = (self._has_mapping("buyer_first_name", field_mappings) or 
-                               self._has_mapping("buyer_national_id", field_mappings))
-            buyer_lei_value = self._get_mapped_value("buyer_lei", row, field_mappings, constants)
+        if not buyer_lei:
+            # Fallback to taker/maker logic if no direct buyer_lei mapping
+            taker_side = self._get_mapped_value("taker_side_ordertype_sellorbuy", row, field_mappings, constants).lower()
             
-            if has_buyer_lei or has_buyer_person or buyer_lei_value:
-                buyer_info = {'side': 'legacy', 'user_id': buyer_lei_value, 'is_mtf': bool(buyer_lei_value)}
-        
-        if buyer_info:
-            buyr = SubElement(parent, "Buyr")
-            acct_ownr = SubElement(buyr, "AcctOwnr")
-            id_elem = SubElement(acct_ownr, "Id")
-            
-            if buyer_info['is_mtf'] and buyer_info['user_id']:
-                # Legal entity - populate LEI only
-                lei = SubElement(id_elem, "LEI")
-                lei.text = buyer_info['user_id']
+            if taker_side == "buy":
+                # Taker is buyer
+                buyer_lei = self._get_mapped_value("fills_taker_user_id", row, field_mappings, constants)
             else:
-                # Natural person - populate personal details
-                prsn = SubElement(id_elem, "Prsn")
-                
-                if buyer_info['side'] == 'legacy':
-                    # Use old field names for backward compatibility
-                    if self._has_mapping("buyer_first_name", field_mappings):
-                        frst_nm = SubElement(prsn, "FrstNm")
-                        frst_nm.text = self._get_mapped_value("buyer_first_name", row, field_mappings, constants)
-                    
-                    if self._has_mapping("buyer_last_name", field_mappings):
-                        nm = SubElement(prsn, "Nm")
-                        nm.text = self._get_mapped_value("buyer_last_name", row, field_mappings, constants)
-                    
-                    if self._has_mapping("buyer_birth_date", field_mappings):
-                        birth_dt = SubElement(prsn, "BirthDt")
-                        birth_dt.text = self._get_mapped_value("buyer_birth_date", row, field_mappings, constants)
-                    
-                    if self._has_mapping("buyer_national_id", field_mappings):
-                        othr = SubElement(prsn, "Othr")
-                        id_val = SubElement(othr, "Id")
-                        id_val.text = self._get_mapped_value("buyer_national_id", row, field_mappings, constants)
-                        schme_nm = SubElement(othr, "SchmeNm")
-                        cd = SubElement(schme_nm, "Cd")
-                        cd.text = "NIDN"
-                else:
-                    # Use side-specific field names
-                    side = buyer_info['side']
-                    
-                    # First name
-                    first_name_field = f"{side}_first_name"
-                    if self._has_mapping(first_name_field, field_mappings):
-                        frst_nm = SubElement(prsn, "FrstNm")
-                        frst_nm.text = self._get_mapped_value(first_name_field, row, field_mappings, constants)
-                    
-                    # Last name
-                    last_name_field = f"{side}_last_name"
-                    if self._has_mapping(last_name_field, field_mappings):
-                        nm = SubElement(prsn, "Nm")
-                        nm.text = self._get_mapped_value(last_name_field, row, field_mappings, constants)
-                    
-                    # Birth date
-                    birth_date_field = f"{side}_birth_date"
-                    if self._has_mapping(birth_date_field, field_mappings):
-                        birth_dt = SubElement(prsn, "BirthDt")
-                        birth_dt.text = self._get_mapped_value(birth_date_field, row, field_mappings, constants)
-                    
-                    # National ID - use the user_id as national ID
-                    if buyer_info['user_id']:
-                        othr = SubElement(prsn, "Othr")
-                        id_val = SubElement(othr, "Id")
-                        id_val.text = buyer_info['user_id']
-                        schme_nm = SubElement(othr, "SchmeNm")
-                        cd = SubElement(schme_nm, "Cd")
-                        cd.text = "NIDN"
+                # Maker is buyer (when taker sells, maker buys)
+                buyer_lei = self._get_mapped_value("fills_maker_user_id", row, field_mappings, constants)
+        
+        # Final fallback
+        if not buyer_lei:
+            buyer_lei = "BUYER_LEI_HERE"
+        
+        # Always create buyer section (required by schema)
+        buyr = SubElement(parent, "Buyr")
+        acct_ownr = SubElement(buyr, "AcctOwnr")
+        id_elem = SubElement(acct_ownr, "Id")
+        
+        if buyer_lei == FIRM_LEI:
+            # Your firm as buyer - only populate AcctOwnr/Id/LEI, skip person info
+            lei = SubElement(id_elem, "LEI")
+            lei.text = buyer_lei
+        else:
+            # Counterparty as buyer - include person info, leave LEI blank
+            prsn = SubElement(id_elem, "Prsn")
             
-            # Country of branch
-            if buyer_info['side'] == 'legacy':
-                if self._has_mapping("buyer_country", field_mappings):
-                    ctry_of_brnch = SubElement(acct_ownr, "CtryOfBrnch")
-                    ctry_of_brnch.text = self._get_mapped_value("buyer_country", row, field_mappings, constants)
+            # Add person name
+            if self._has_mapping("buyer_first_name", field_mappings):
+                frst_nm = SubElement(prsn, "FrstNm")
+                frst_nm.text = self._get_mapped_value("buyer_first_name", row, field_mappings, constants)
+            
+            if self._has_mapping("buyer_last_name", field_mappings):
+                nm = SubElement(prsn, "Nm")
+                nm.text = self._get_mapped_value("buyer_last_name", row, field_mappings, constants)
             else:
-                country_field = f"{buyer_info['side']}_id_country_of_branch"
-                if self._has_mapping(country_field, field_mappings):
-                    ctry_of_brnch = SubElement(acct_ownr, "CtryOfBrnch")
-                    ctry_of_brnch.text = self._get_mapped_value(country_field, row, field_mappings, constants)
+                # Default name if not mapped
+                nm = SubElement(prsn, "Nm")
+                nm.text = "Counterparty Buyer"
             
-            # E) Decision-maker fields for buyer
+            if self._has_mapping("buyer_birth_date", field_mappings):
+                birth_dt = SubElement(prsn, "BirthDt")
+                birth_dt.text = self._get_mapped_value("buyer_birth_date", row, field_mappings, constants)
+            
+            # National ID or other identification
+            if self._has_mapping("buyer_national_id", field_mappings):
+                othr = SubElement(prsn, "Othr")
+                id_val = SubElement(othr, "Id")
+                id_val.text = self._get_mapped_value("buyer_national_id", row, field_mappings, constants)
+                schme_nm = SubElement(othr, "SchmeNm")
+                cd = SubElement(schme_nm, "Cd")
+                cd.text = "NIDN"
+            else:
+                # Default other identification
+                othr = SubElement(prsn, "Othr")
+                id_val = SubElement(othr, "Id")
+                id_val.text = "UNKNOWN_ID"
+                schme_nm = SubElement(othr, "SchmeNm")
+                cd = SubElement(schme_nm, "Cd")
+                cd.text = "NOID"
+        
+        # Country of branch
+        if self._has_mapping("buyer_country", field_mappings):
+            ctry_of_brnch = SubElement(acct_ownr, "CtryOfBrnch")
+            ctry_of_brnch.text = self._get_mapped_value("buyer_country", row, field_mappings, constants)
+        
+        # Decision-maker fields only for your firm
+        if buyer_lei == FIRM_LEI:
             self._add_decision_makers(buyr, row, field_mappings, constants, "investment")
     
     def _add_seller(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
                     constants: Dict[str, str]):
-        """Add seller information using taker/maker side logic."""
-        MTF_LEI = "2138005EFA978Y43G944"
+        """Add seller information with firm-specific logic."""
+        FIRM_LEI = "2138005EFA978Y43G944"
         
-        # Check taker side first
-        taker_order_type = self._get_mapped_value("taker_side_ordertype_sellorbuy", row, field_mappings, constants)
-        taker_user_id = self._get_mapped_value("fills_taker_user_id", row, field_mappings, constants)
+        # Determine seller LEI - prefer direct mapping, fallback to taker/maker logic
+        seller_lei = self._get_mapped_value("seller_lei", row, field_mappings, constants)
         
-        # Check maker side
-        maker_order_type = self._get_mapped_value("maker_side_ordertype_sellorbuy", row, field_mappings, constants)
-        maker_user_id = self._get_mapped_value("fills_maker_user_id", row, field_mappings, constants)
-        
-        seller_info = None
-        
-        # Determine seller based on order type
-        if taker_order_type and taker_order_type.lower() == 'sell':
-            seller_info = {'side': 'taker', 'user_id': taker_user_id, 'is_mtf': taker_user_id == MTF_LEI}
-        elif maker_order_type and maker_order_type.lower() == 'sell':
-            seller_info = {'side': 'maker', 'user_id': maker_user_id, 'is_mtf': maker_user_id == MTF_LEI}
-        
-        # Fallback to old logic if no taker/maker data
-        if not seller_info:
-            has_seller_lei = self._has_mapping("seller_lei", field_mappings)
-            has_seller_person = (self._has_mapping("seller_first_name", field_mappings) or 
-                                self._has_mapping("seller_national_id", field_mappings))
-            seller_lei_value = self._get_mapped_value("seller_lei", row, field_mappings, constants)
+        if not seller_lei:
+            # Fallback to taker/maker logic if no direct seller_lei mapping
+            taker_side = self._get_mapped_value("taker_side_ordertype_sellorbuy", row, field_mappings, constants).lower()
             
-            if has_seller_lei or has_seller_person or seller_lei_value:
-                seller_info = {'side': 'legacy', 'user_id': seller_lei_value, 'is_mtf': bool(seller_lei_value)}
-        
-        if seller_info:
-            sellr = SubElement(parent, "Sellr")
-            acct_ownr = SubElement(sellr, "AcctOwnr")
-            id_elem = SubElement(acct_ownr, "Id")
-            
-            if seller_info['is_mtf'] and seller_info['user_id']:
-                # Legal entity - populate LEI only
-                lei = SubElement(id_elem, "LEI")
-                lei.text = seller_info['user_id']
+            if taker_side == "sell":
+                # Taker is seller
+                seller_lei = self._get_mapped_value("fills_taker_user_id", row, field_mappings, constants)
             else:
-                # Natural person - populate personal details
-                prsn = SubElement(id_elem, "Prsn")
-                
-                if seller_info['side'] == 'legacy':
-                    # Use old field names for backward compatibility
-                    if self._has_mapping("seller_first_name", field_mappings):
-                        frst_nm = SubElement(prsn, "FrstNm")
-                        frst_nm.text = self._get_mapped_value("seller_first_name", row, field_mappings, constants)
-                    
-                    if self._has_mapping("seller_last_name", field_mappings):
-                        nm = SubElement(prsn, "Nm")
-                        nm.text = self._get_mapped_value("seller_last_name", row, field_mappings, constants)
-                    
-                    if self._has_mapping("seller_birth_date", field_mappings):
-                        birth_dt = SubElement(prsn, "BirthDt")
-                        birth_dt.text = self._get_mapped_value("seller_birth_date", row, field_mappings, constants)
-                    
-                    if self._has_mapping("seller_national_id", field_mappings):
-                        othr = SubElement(prsn, "Othr")
-                        id_val = SubElement(othr, "Id")
-                        id_val.text = self._get_mapped_value("seller_national_id", row, field_mappings, constants)
-                        schme_nm = SubElement(othr, "SchmeNm")
-                        cd = SubElement(schme_nm, "Cd")
-                        cd.text = "NIDN"
-                else:
-                    # Use side-specific field names
-                    side = seller_info['side']
-                    
-                    # First name
-                    first_name_field = f"{side}_first_name"
-                    if self._has_mapping(first_name_field, field_mappings):
-                        frst_nm = SubElement(prsn, "FrstNm")
-                        frst_nm.text = self._get_mapped_value(first_name_field, row, field_mappings, constants)
-                    
-                    # Last name
-                    last_name_field = f"{side}_last_name"
-                    if self._has_mapping(last_name_field, field_mappings):
-                        nm = SubElement(prsn, "Nm")
-                        nm.text = self._get_mapped_value(last_name_field, row, field_mappings, constants)
-                    
-                    # Birth date
-                    birth_date_field = f"{side}_birth_date"
-                    if self._has_mapping(birth_date_field, field_mappings):
-                        birth_dt = SubElement(prsn, "BirthDt")
-                        birth_dt.text = self._get_mapped_value(birth_date_field, row, field_mappings, constants)
-                    
-                    # National ID - use the user_id as national ID
-                    if seller_info['user_id']:
-                        othr = SubElement(prsn, "Othr")
-                        id_val = SubElement(othr, "Id")
-                        id_val.text = seller_info['user_id']
-                        schme_nm = SubElement(othr, "SchmeNm")
-                        cd = SubElement(schme_nm, "Cd")
-                        cd.text = "NIDN"
+                # Maker is seller (when taker buys, maker sells)
+                seller_lei = self._get_mapped_value("fills_maker_user_id", row, field_mappings, constants)
+        
+        # Final fallback
+        if not seller_lei:
+            seller_lei = "SELLER_LEI_HERE"
+        
+        # Always create seller section (required by schema)
+        sellr = SubElement(parent, "Sellr")
+        acct_ownr = SubElement(sellr, "AcctOwnr")
+        id_elem = SubElement(acct_ownr, "Id")
+        
+        if seller_lei == FIRM_LEI:
+            # Your firm as seller - only populate AcctOwnr/Id/LEI, skip person info
+            lei = SubElement(id_elem, "LEI")
+            lei.text = seller_lei
+        else:
+            # Counterparty as seller - include person info, leave LEI blank
+            prsn = SubElement(id_elem, "Prsn")
             
-            # Country of branch
-            if seller_info['side'] == 'legacy':
-                if self._has_mapping("seller_country", field_mappings):
-                    ctry_of_brnch = SubElement(acct_ownr, "CtryOfBrnch")
-                    ctry_of_brnch.text = self._get_mapped_value("seller_country", row, field_mappings, constants)
+            # Add person name
+            if self._has_mapping("seller_first_name", field_mappings):
+                frst_nm = SubElement(prsn, "FrstNm")
+                frst_nm.text = self._get_mapped_value("seller_first_name", row, field_mappings, constants)
+            
+            if self._has_mapping("seller_last_name", field_mappings):
+                nm = SubElement(prsn, "Nm")
+                nm.text = self._get_mapped_value("seller_last_name", row, field_mappings, constants)
             else:
-                country_field = f"{seller_info['side']}_id_country_of_branch"
-                if self._has_mapping(country_field, field_mappings):
-                    ctry_of_brnch = SubElement(acct_ownr, "CtryOfBrnch")
-                    ctry_of_brnch.text = self._get_mapped_value(country_field, row, field_mappings, constants)
+                # Default name if not mapped
+                nm = SubElement(prsn, "Nm")
+                nm.text = "Counterparty Seller"
             
-            # E) Decision-maker fields for seller (execution decisions)
+            if self._has_mapping("seller_birth_date", field_mappings):
+                birth_dt = SubElement(prsn, "BirthDt")
+                birth_dt.text = self._get_mapped_value("seller_birth_date", row, field_mappings, constants)
+            
+            # National ID or other identification
+            if self._has_mapping("seller_national_id", field_mappings):
+                othr = SubElement(prsn, "Othr")
+                id_val = SubElement(othr, "Id")
+                id_val.text = self._get_mapped_value("seller_national_id", row, field_mappings, constants)
+                schme_nm = SubElement(othr, "SchmeNm")
+                cd = SubElement(schme_nm, "Cd")
+                cd.text = "NIDN"
+            else:
+                # Default other identification
+                othr = SubElement(prsn, "Othr")
+                id_val = SubElement(othr, "Id")
+                id_val.text = "UNKNOWN_ID"
+                schme_nm = SubElement(othr, "SchmeNm")
+                cd = SubElement(schme_nm, "Cd")
+                cd.text = "NOID"
+        
+        # Country of branch
+        if self._has_mapping("seller_country", field_mappings):
+            ctry_of_brnch = SubElement(acct_ownr, "CtryOfBrnch")
+            ctry_of_brnch.text = self._get_mapped_value("seller_country", row, field_mappings, constants)
+        
+        # Decision-maker fields only for your firm
+        if seller_lei == FIRM_LEI:
             self._add_decision_makers(sellr, row, field_mappings, constants, "execution")
     
     def _add_decision_makers(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
