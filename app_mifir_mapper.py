@@ -782,8 +782,19 @@ def main():
                 # Display standard required fields
                 if required_fields:
                     st.markdown("***Standard Required Fields:***")
+                    
+                    # Add column headers for better alignment
+                    col1, col2, col3 = st.columns([3, 3, 4])
+                    with col1:
+                        st.markdown("**Field Name**")
+                    with col2:
+                        st.markdown("**Map to CSV Column**")
+                    with col3:
+                        st.markdown("**Description & Details**")
+                    st.markdown("---")
+                    
                     for field in required_fields:
-                        col1, col2, col3 = st.columns([2, 2, 3])
+                        col1, col2, col3 = st.columns([3, 3, 4])
                         
                         with col1:
                             st.write(f"**{field.name}**")
@@ -809,14 +820,17 @@ def main():
                                 options,
                                 index=default_index,
                                 key=key,
+                                label_visibility="collapsed",
                                 help=f"{field.description}\nExample: {field.example_value}"
                             )
                             st.session_state.field_mappings[field.name] = selected
                         
                         with col3:
                             st.caption(f"📝 {field.description}")
+                            if field.example_value:
+                                st.caption(f"💡 Example: {field.example_value}")
                             if field.notes:
-                                st.caption(f"💡 {field.notes}")
+                                st.caption(f"📌 {field.notes}")
                             if field.enum_values:
                                 st.caption(f"🎯 Values: {', '.join(field.enum_values)}")
                 
@@ -824,7 +838,7 @@ def main():
                 if custom_required_fields:
                     st.markdown("***Custom Required Fields:***")
                     for field in custom_required_fields:
-                        col1, col2, col3 = st.columns([2, 2, 3])
+                        col1, col2, col3 = st.columns([3, 3, 4])
                         
                         with col1:
                             st.write(f"**{field.name}** 🔧")
@@ -848,6 +862,7 @@ def main():
                                 options,
                                 index=default_index,
                                 key=key,
+                                label_visibility="collapsed",
                                 help=f"{field.description}"
                             )
                             st.session_state.field_mappings[field.name] = selected
@@ -1047,8 +1062,20 @@ def main():
                 # Group by buyer/seller
                 st.markdown("**Buyer Information**")
                 buyer_fields = [f for f in conditional_fields if f.name.startswith('buyer_')]
+                
+                if buyer_fields:
+                    # Add column headers
+                    col1, col2, col3 = st.columns([3, 3, 4])
+                    with col1:
+                        st.markdown("**Field Name**")
+                    with col2:
+                        st.markdown("**Map to CSV Column**")
+                    with col3:
+                        st.markdown("**Description & Details**")
+                    st.markdown("---")
+                
                 for field in buyer_fields:
-                    col1, col2, col3 = st.columns([2, 2, 3])
+                    col1, col2, col3 = st.columns([3, 3, 4])
                     
                     with col1:
                         st.write(f"**{field.name}**")
@@ -1068,16 +1095,30 @@ def main():
                         except ValueError:
                             default_index = 0
                         
-                        selected = st.selectbox("Map to:", options, index=default_index, key=key)
+                        selected = st.selectbox("Map to:", options, index=default_index, key=key, label_visibility="collapsed")
                         st.session_state.field_mappings[field.name] = selected
                     
                     with col3:
                         st.caption(f"📝 {field.description}")
+                        if field.example_value:
+                            st.caption(f"💡 Example: {field.example_value}")
                 
                 st.markdown("**Seller Information**")
                 seller_fields = [f for f in conditional_fields if f.name.startswith('seller_')]
+                
+                if seller_fields:
+                    # Add column headers
+                    col1, col2, col3 = st.columns([3, 3, 4])
+                    with col1:
+                        st.markdown("**Field Name**")
+                    with col2:
+                        st.markdown("**Map to CSV Column**")
+                    with col3:
+                        st.markdown("**Description & Details**")
+                    st.markdown("---")
+                
                 for field in seller_fields:
-                    col1, col2, col3 = st.columns([2, 2, 3])
+                    col1, col2, col3 = st.columns([3, 3, 4])
                     
                     with col1:
                         st.write(f"**{field.name}**")
@@ -1097,11 +1138,13 @@ def main():
                         except ValueError:
                             default_index = 0
                         
-                        selected = st.selectbox("Map to:", options, index=default_index, key=key)
+                        selected = st.selectbox("Map to:", options, index=default_index, key=key, label_visibility="collapsed")
                         st.session_state.field_mappings[field.name] = selected
                     
                     with col3:
                         st.caption(f"📝 {field.description}")
+                        if field.example_value:
+                            st.caption(f"💡 Example: {field.example_value}")
                 
                 # Display custom conditional fields
                 if custom_conditional_fields:
@@ -1143,8 +1186,19 @@ def main():
                 # Display standard optional fields
                 if optional_fields:
                     st.markdown("***Standard Optional Fields:***")
+                    
+                    # Add column headers
+                    col1, col2, col3 = st.columns([3, 3, 4])
+                    with col1:
+                        st.markdown("**Field Name**")
+                    with col2:
+                        st.markdown("**Map to CSV Column**")
+                    with col3:
+                        st.markdown("**Description & Details**")
+                    st.markdown("---")
+                    
                     for field in optional_fields:
-                        col1, col2, col3 = st.columns([2, 2, 3])
+                        col1, col2, col3 = st.columns([3, 3, 4])
                         
                         with col1:
                             st.write(f"**{field.name}**")
@@ -1164,13 +1218,15 @@ def main():
                             except ValueError:
                                 default_index = 0
                             
-                            selected = st.selectbox("Map to:", options, index=default_index, key=key)
+                            selected = st.selectbox("Map to:", options, index=default_index, key=key, label_visibility="collapsed")
                             st.session_state.field_mappings[field.name] = selected
                         
                         with col3:
                             st.caption(f"📝 {field.description}")
+                            if field.example_value:
+                                st.caption(f"💡 Example: {field.example_value}")
                             if field.notes:
-                                st.caption(f"💡 {field.notes}")
+                                st.caption(f"📌 {field.notes}")
                             if field.enum_values:
                                 st.caption(f"🎯 Values: {', '.join(field.enum_values)}")
                 
@@ -1178,7 +1234,7 @@ def main():
                 if custom_optional_fields:
                     st.markdown("***Custom Optional Fields:***")
                     for field in custom_optional_fields:
-                        col1, col2, col3 = st.columns([2, 2, 3])
+                        col1, col2, col3 = st.columns([3, 3, 4])
                         
                         with col1:
                             st.write(f"**{field.name}** 🔧")
@@ -1197,7 +1253,7 @@ def main():
                             except ValueError:
                                 default_index = 0
                             
-                            selected = st.selectbox("Map to:", options, index=default_index, key=key)
+                            selected = st.selectbox("Map to:", options, index=default_index, key=key, label_visibility="collapsed")
                             st.session_state.field_mappings[field.name] = selected
                         
                         with col3:

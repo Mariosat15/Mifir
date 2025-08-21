@@ -84,6 +84,35 @@ MIFIR_FIELDS = [
         notes="6-character CFI code - can be provided as constant"
     ),
     
+    # Instrument Attributes (configurable)
+    MiFIRField(
+        "instrument_full_name",
+        "FinInstrm/Othr/FinInstrmGnlAttrbts/FullNm",
+        FieldType.STRING,
+        RequirementLevel.OPTIONAL,
+        "Full name of the financial instrument",
+        "SOL_USDC_PERP",
+        notes="Descriptive name of the instrument (can map from symbol/ticker)"
+    ),
+    MiFIRField(
+        "instrument_classification",
+        "FinInstrm/Othr/FinInstrmGnlAttrbts/ClssfctnTp", 
+        FieldType.STRING,
+        RequirementLevel.OPTIONAL,
+        "CFI classification type for the instrument",
+        "SESTXC",
+        notes="6-character CFI code for classification"
+    ),
+    MiFIRField(
+        "instrument_notional_currency",
+        "FinInstrm/Othr/FinInstrmGnlAttrbts/NtnlCcy",
+        FieldType.STRING, 
+        RequirementLevel.OPTIONAL,
+        "Notional currency of the instrument",
+        "USD",
+        notes="ISO 4217 currency code"
+    ),
+    
     # C) Execution details
     MiFIRField(
         "execution_datetime", 

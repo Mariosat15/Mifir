@@ -269,28 +269,34 @@ class MiFIRXMLGenerator:
         # FinInstrmGnlAttrbts
         fin_instrm_gnl_attrbts = SubElement(othr, "FinInstrmGnlAttrbts")
         
-        # FullNm (Instrument full name)
+        # FullNm (Instrument full name) - configurable
         full_nm = SubElement(fin_instrm_gnl_attrbts, "FullNm")
-        if self._has_mapping("instrument_name", field_mappings):
+        if self._has_mapping("instrument_full_name", field_mappings):
+            full_nm.text = self._get_mapped_value("instrument_full_name", row, field_mappings, constants)
+        elif self._has_mapping("instrument_name", field_mappings):
             full_nm.text = self._get_mapped_value("instrument_name", row, field_mappings, constants)
         elif self._has_mapping("instrument_symbol", field_mappings):
             full_nm.text = self._get_mapped_value("instrument_symbol", row, field_mappings, constants)
         else:
-            full_nm.text = "CRYPTO_DERIVATIVE"
+            full_nm.text = "CRYPTO_DERIVATIVE"  # Fallback default
         
-        # ClssfctnTp (Classification type)
+        # ClssfctnTp (Classification type) - configurable
         clssfctn_tp = SubElement(fin_instrm_gnl_attrbts, "ClssfctnTp")
-        if self._has_mapping("classification_type", field_mappings):
+        if self._has_mapping("instrument_classification", field_mappings):
+            clssfctn_tp.text = self._get_mapped_value("instrument_classification", row, field_mappings, constants)
+        elif self._has_mapping("classification_type", field_mappings):
             clssfctn_tp.text = self._get_mapped_value("classification_type", row, field_mappings, constants)
         else:
-            clssfctn_tp.text = "SESTXC"  # Default
+            clssfctn_tp.text = "SESTXC"  # Default CFI code
         
-        # NtnlCcy (Notional currency)
+        # NtnlCcy (Notional currency) - configurable
         ntnl_ccy = SubElement(fin_instrm_gnl_attrbts, "NtnlCcy")
-        if self._has_mapping("notional_currency", field_mappings):
+        if self._has_mapping("instrument_notional_currency", field_mappings):
+            ntnl_ccy.text = self._get_mapped_value("instrument_notional_currency", row, field_mappings, constants)
+        elif self._has_mapping("notional_currency", field_mappings):
             ntnl_ccy.text = self._get_mapped_value("notional_currency", row, field_mappings, constants)
         else:
-            ntnl_ccy.text = "USD"  # Default
+            ntnl_ccy.text = "USD"  # Default currency
         
         # DerivInstrmAttrbts (for derivatives)
         deriv_instrm_attrbts = SubElement(othr, "DerivInstrmAttrbts")
