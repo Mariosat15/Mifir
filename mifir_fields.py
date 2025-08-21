@@ -113,6 +113,28 @@ MIFIR_FIELDS = [
         notes="ISO 4217 currency code"
     ),
     
+    # Derivative instrument attributes
+    MiFIRField(
+        "price_multiplier",
+        "FinInstrm/Othr/DerivInstrmAttrbts/PricMltplr",
+        FieldType.STRING,
+        RequirementLevel.OPTIONAL,
+        "Price multiplier for the derivative",
+        "1",
+        notes="Multiplier applied to the price"
+    ),
+    
+    MiFIRField(
+        "delivery_type",
+        "FinInstrm/Othr/DerivInstrmAttrbts/DlvryTp",
+        FieldType.ENUM,
+        RequirementLevel.OPTIONAL,
+        "Delivery type for the derivative",
+        "CASH",
+        enum_values=["CASH", "PHYS"],
+        notes="Cash settled or physically delivered"
+    ),
+    
     # C) Execution details
     MiFIRField(
         "execution_datetime", 

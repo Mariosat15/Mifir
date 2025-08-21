@@ -267,16 +267,7 @@ class MiFIRXMLGenerator:
         """Add financial instrument with correct ESMAUG 1.1.0 structure."""
         fin_instrm = SubElement(parent, "FinInstrm")
         
-        # Check if ISIN is provided - if so, use ISIN structure instead of Othr
-        if self._has_mapping("instrument_isin", field_mappings):
-            isin_value = self._get_mapped_value("instrument_isin", row, field_mappings, constants)
-            if isin_value and isin_value.strip():
-                # Use ISIN structure
-                isin_elem = SubElement(fin_instrm, "ISIN")
-                isin_elem.text = isin_value.strip()
-                return  # Skip the Othr structure when ISIN is present
-        
-        # Use Othr choice for non-standard instruments
+        # Always use Othr structure for derivatives (MiFIR requirement)
         othr = SubElement(fin_instrm, "Othr")
         
         # FinInstrmGnlAttrbts
