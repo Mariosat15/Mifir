@@ -89,7 +89,11 @@ class MiFIRXMLGenerator:
         
         # Business message identifier
         biz_msg_idr = SubElement(app_hdr, "BizMsgIdr")
-        biz_msg_idr.text = constants.get("biz_msg_id", f"KD_DATTRA_generated_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        # Use provided value or generate a unique one
+        if "biz_msg_id" in constants and constants["biz_msg_id"]:
+            biz_msg_idr.text = constants["biz_msg_id"]
+        else:
+            biz_msg_idr.text = f"KD_DATTRA_generated_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         # Message definition identifier
         msg_def_idr = SubElement(app_hdr, "MsgDefIdr")
@@ -263,6 +267,15 @@ class MiFIRXMLGenerator:
         """Add financial instrument with correct ESMAUG 1.1.0 structure."""
         fin_instrm = SubElement(parent, "FinInstrm")
         
+        # Check if ISIN is provided - if so, use ISIN structure instead of Othr
+        if self._has_mapping("instrument_isin", field_mappings):
+            isin_value = self._get_mapped_value("instrument_isin", row, field_mappings, constants)
+            if isin_value and isin_value.strip():
+                # Use ISIN structure
+                isin_elem = SubElement(fin_instrm, "ISIN")
+                isin_elem.text = isin_value.strip()
+                return  # Skip the Othr structure when ISIN is present
+        
         # Use Othr choice for non-standard instruments
         othr = SubElement(fin_instrm, "Othr")
         
@@ -364,12 +377,13 @@ class MiFIRXMLGenerator:
         acct_ownr = SubElement(buyr, "AcctOwnr")
         id_elem = SubElement(acct_ownr, "Id")
         
-        if buyer_lei == FIRM_LEI:
-            # Your firm as buyer - only populate AcctOwnr/Id/LEI, skip person info
+        # Check if buyer is a legal entity (has LEI) or a person
+        if self._is_lei_format(buyer_lei):
+            # Legal entity - use LEI, no person info
             lei = SubElement(id_elem, "LEI")
             lei.text = buyer_lei
         else:
-            # Counterparty as buyer - include person info, leave LEI blank
+            # Natural person - include person info, no LEI
             prsn = SubElement(id_elem, "Prsn")
             
             # Add person name
@@ -385,9 +399,11 @@ class MiFIRXMLGenerator:
                 nm = SubElement(prsn, "Nm")
                 nm.text = "Counterparty Buyer"
             
+            # Only add birth date for natural persons, not legal entities
             if self._has_mapping("buyer_birth_date", field_mappings):
                 birth_dt = SubElement(prsn, "BirthDt")
-                birth_dt.text = self._get_mapped_value("buyer_birth_date", row, field_mappings, constants)
+                birth_date_value = self._get_mapped_value("buyer_birth_date", row, field_mappings, constants)
+                birth_dt.text = self._format_date(birth_date_value)
             
             # National ID or other identification
             if self._has_mapping("buyer_national_id", field_mappings):
@@ -406,13 +422,13 @@ class MiFIRXMLGenerator:
                 cd = SubElement(schme_nm, "Cd")
                 cd.text = "NOID"
         
-        # Country of branch
-        if self._has_mapping("buyer_country", field_mappings):
+        # Country of branch - only for natural persons, not for LEI entities
+        if not self._is_lei_format(buyer_lei) and self._has_mapping("buyer_country", field_mappings):
             ctry_of_brnch = SubElement(acct_ownr, "CtryOfBrnch")
             ctry_of_brnch.text = self._get_mapped_value("buyer_country", row, field_mappings, constants)
         
-        # Decision-maker fields only for your firm
-        if buyer_lei == FIRM_LEI:
+        # Decision-maker fields only for your firm (LEI entities)
+        if self._is_lei_format(buyer_lei) and buyer_lei == FIRM_LEI:
             self._add_decision_makers(buyr, row, field_mappings, constants, "investment")
     
     def _add_seller(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
@@ -443,12 +459,13 @@ class MiFIRXMLGenerator:
         acct_ownr = SubElement(sellr, "AcctOwnr")
         id_elem = SubElement(acct_ownr, "Id")
         
-        if seller_lei == FIRM_LEI:
-            # Your firm as seller - only populate AcctOwnr/Id/LEI, skip person info
+        # Check if seller is a legal entity (has LEI) or a person
+        if self._is_lei_format(seller_lei):
+            # Legal entity - use LEI, no person info
             lei = SubElement(id_elem, "LEI")
             lei.text = seller_lei
         else:
-            # Counterparty as seller - include person info, leave LEI blank
+            # Natural person - include person info, no LEI
             prsn = SubElement(id_elem, "Prsn")
             
             # Add person name
@@ -464,9 +481,11 @@ class MiFIRXMLGenerator:
                 nm = SubElement(prsn, "Nm")
                 nm.text = "Counterparty Seller"
             
+            # Only add birth date for natural persons, not legal entities
             if self._has_mapping("seller_birth_date", field_mappings):
                 birth_dt = SubElement(prsn, "BirthDt")
-                birth_dt.text = self._get_mapped_value("seller_birth_date", row, field_mappings, constants)
+                birth_date_value = self._get_mapped_value("seller_birth_date", row, field_mappings, constants)
+                birth_dt.text = self._format_date(birth_date_value)
             
             # National ID or other identification
             if self._has_mapping("seller_national_id", field_mappings):
@@ -485,13 +504,13 @@ class MiFIRXMLGenerator:
                 cd = SubElement(schme_nm, "Cd")
                 cd.text = "NOID"
         
-        # Country of branch
-        if self._has_mapping("seller_country", field_mappings):
+        # Country of branch - only for natural persons, not for LEI entities
+        if not self._is_lei_format(seller_lei) and self._has_mapping("seller_country", field_mappings):
             ctry_of_brnch = SubElement(acct_ownr, "CtryOfBrnch")
             ctry_of_brnch.text = self._get_mapped_value("seller_country", row, field_mappings, constants)
         
-        # Decision-maker fields only for your firm
-        if seller_lei == FIRM_LEI:
+        # Decision-maker fields only for your firm (LEI entities)
+        if self._is_lei_format(seller_lei) and seller_lei == FIRM_LEI:
             self._add_decision_makers(sellr, row, field_mappings, constants, "execution")
     
     def _add_decision_makers(self, parent: Element, row: pd.Series, field_mappings: Dict[str, str], 
@@ -678,3 +697,27 @@ class MiFIRXMLGenerator:
             return timestamp_str
         except:
             return datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    
+    def _is_lei_format(self, identifier: str) -> bool:
+        """Check if identifier is in LEI format (20 alphanumeric characters)."""
+        if not identifier or identifier in ["BUYER_LEI_HERE", "SELLER_LEI_HERE", "YOUR_FIRM_LEI_HERE"]:
+            return False
+        
+        # LEI format: exactly 20 alphanumeric characters
+        return len(identifier) == 20 and identifier.isalnum()
+    
+    def _format_date(self, date_str: str) -> str:
+        """Format date string to YYYY-MM-DD format (remove time component)."""
+        if not date_str:
+            return ""
+        
+        try:
+            # Parse the date string and extract only the date part
+            dt = pd.to_datetime(date_str)
+            return dt.strftime('%Y-%m-%d')
+        except:
+            # If parsing fails, try to extract just the date part manually
+            if ' ' in date_str:
+                # Remove time component (everything after the first space)
+                return date_str.split(' ')[0]
+            return date_str

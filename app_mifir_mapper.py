@@ -805,20 +805,17 @@ def main():
                             key = f"std_req_mapping_{field.name}"  # Unique prefix for standard required
                             options = ["None", "[Constant Value]"] + list(df.columns)
                             
-                            # Check if we have a pre-existing value (from auto-suggestions)
-                            current_value = st.session_state.get(key, "None")
-                            if current_value not in options:
-                                current_value = "None"
+                            # Initialize session state if not exists
+                            if key not in st.session_state:
+                                st.session_state[key] = "None"
                             
-                            try:
-                                default_index = options.index(current_value)
-                            except ValueError:
-                                default_index = 0
+                            # Ensure the session state value is valid
+                            if st.session_state[key] not in options:
+                                st.session_state[key] = "None"
                             
                             selected = st.selectbox(
                                 "Map to:",
                                 options,
-                                index=default_index,
                                 key=key,
                                 label_visibility="collapsed",
                                 help=f"{field.description}\nExample: {field.example_value}"
@@ -848,19 +845,17 @@ def main():
                             key = f"cust_req_mapping_{field.name}_{id(field)}"
                             options = ["None", "[Constant Value]"] + list(df.columns)
                             
-                            current_value = st.session_state.get(key, "None")
-                            if current_value not in options:
-                                current_value = "None"
+                            # Initialize session state if not exists
+                            if key not in st.session_state:
+                                st.session_state[key] = "None"
                             
-                            try:
-                                default_index = options.index(current_value)
-                            except ValueError:
-                                default_index = 0
+                            # Ensure the session state value is valid
+                            if st.session_state[key] not in options:
+                                st.session_state[key] = "None"
                             
                             selected = st.selectbox(
                                 "Map to:",
                                 options,
-                                index=default_index,
                                 key=key,
                                 label_visibility="collapsed",
                                 help=f"{field.description}"
@@ -1085,17 +1080,15 @@ def main():
                         key = f"buyer_mapping_{field.name}"
                         options = ["None", "[Constant Value]"] + list(df.columns)
                         
-                        # Check for pre-existing value
-                        current_value = st.session_state.get(key, "None")
-                        if current_value not in options:
-                            current_value = "None"
+                        # Initialize session state if not exists
+                        if key not in st.session_state:
+                            st.session_state[key] = "None"
                         
-                        try:
-                            default_index = options.index(current_value)
-                        except ValueError:
-                            default_index = 0
+                        # Ensure the session state value is valid
+                        if st.session_state[key] not in options:
+                            st.session_state[key] = "None"
                         
-                        selected = st.selectbox("Map to:", options, index=default_index, key=key, label_visibility="collapsed")
+                        selected = st.selectbox("Map to:", options, key=key, label_visibility="collapsed")
                         st.session_state.field_mappings[field.name] = selected
                     
                     with col3:
@@ -1128,17 +1121,15 @@ def main():
                         key = f"seller_mapping_{field.name}"
                         options = ["None", "[Constant Value]"] + list(df.columns)
                         
-                        # Check for pre-existing value
-                        current_value = st.session_state.get(key, "None")
-                        if current_value not in options:
-                            current_value = "None"
+                        # Initialize session state if not exists
+                        if key not in st.session_state:
+                            st.session_state[key] = "None"
                         
-                        try:
-                            default_index = options.index(current_value)
-                        except ValueError:
-                            default_index = 0
+                        # Ensure the session state value is valid
+                        if st.session_state[key] not in options:
+                            st.session_state[key] = "None"
                         
-                        selected = st.selectbox("Map to:", options, index=default_index, key=key, label_visibility="collapsed")
+                        selected = st.selectbox("Map to:", options, key=key, label_visibility="collapsed")
                         st.session_state.field_mappings[field.name] = selected
                     
                     with col3:
@@ -1160,16 +1151,15 @@ def main():
                             key = f"cust_cond_mapping_{field.name}_{id(field)}"
                             options = ["None", "[Constant Value]"] + list(df.columns)
                             
-                            current_value = st.session_state.get(key, "None")
-                            if current_value not in options:
-                                current_value = "None"
+                            # Initialize session state if not exists
+                            if key not in st.session_state:
+                                st.session_state[key] = "None"
                             
-                            try:
-                                default_index = options.index(current_value)
-                            except ValueError:
-                                default_index = 0
+                            # Ensure the session state value is valid
+                            if st.session_state[key] not in options:
+                                st.session_state[key] = "None"
                             
-                            selected = st.selectbox("Map to:", options, index=default_index, key=key)
+                            selected = st.selectbox("Map to:", options, key=key)
                             st.session_state.field_mappings[field.name] = selected
                         
                         with col3:
@@ -1208,17 +1198,15 @@ def main():
                             key = f"std_opt_mapping_{field.name}"
                             options = ["None", "[Constant Value]"] + list(df.columns)
                             
-                            # Check for pre-existing value
-                            current_value = st.session_state.get(key, "None")
-                            if current_value not in options:
-                                current_value = "None"
+                            # Initialize session state if not exists
+                            if key not in st.session_state:
+                                st.session_state[key] = "None"
                             
-                            try:
-                                default_index = options.index(current_value)
-                            except ValueError:
-                                default_index = 0
+                            # Ensure the session state value is valid
+                            if st.session_state[key] not in options:
+                                st.session_state[key] = "None"
                             
-                            selected = st.selectbox("Map to:", options, index=default_index, key=key, label_visibility="collapsed")
+                            selected = st.selectbox("Map to:", options, key=key, label_visibility="collapsed")
                             st.session_state.field_mappings[field.name] = selected
                         
                         with col3:
@@ -1244,16 +1232,15 @@ def main():
                             key = f"cust_opt_mapping_{field.name}_{id(field)}"
                             options = ["None", "[Constant Value]"] + list(df.columns)
                             
-                            current_value = st.session_state.get(key, "None")
-                            if current_value not in options:
-                                current_value = "None"
+                            # Initialize session state if not exists
+                            if key not in st.session_state:
+                                st.session_state[key] = "None"
                             
-                            try:
-                                default_index = options.index(current_value)
-                            except ValueError:
-                                default_index = 0
+                            # Ensure the session state value is valid
+                            if st.session_state[key] not in options:
+                                st.session_state[key] = "None"
                             
-                            selected = st.selectbox("Map to:", options, index=default_index, key=key, label_visibility="collapsed")
+                            selected = st.selectbox("Map to:", options, key=key, label_visibility="collapsed")
                             st.session_state.field_mappings[field.name] = selected
                         
                         with col3:
