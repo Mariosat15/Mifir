@@ -26,7 +26,7 @@
       </To>
       <BizMsgIdr>SCHEMA_COMPLIANT_TEST</BizMsgIdr>
       <MsgDefIdr>auth.016.001.01</MsgDefIdr>
-      <CreDt>2025-08-19T14:32:32Z</CreDt>
+      <CreDt>2025-08-21T10:52:01Z</CreDt>
     </AppHdr>
   </Hdr>
   <Pyld>
@@ -41,14 +41,30 @@
             <Buyr>
               <AcctOwnr>
                 <Id>
-                  <LEI>549300XYZABCDEFG5678</LEI>
+                  <Prsn>
+                    <Nm>Counterparty Buyer</Nm>
+                    <Othr>
+                      <Id>UNKNOWN_ID</Id>
+                      <SchmeNm>
+                        <Cd>NOID</Cd>
+                      </SchmeNm>
+                    </Othr>
+                  </Prsn>
                 </Id>
               </AcctOwnr>
             </Buyr>
             <Sellr>
               <AcctOwnr>
                 <Id>
-                  <LEI>213800ABCDEFGHIJ1234</LEI>
+                  <Prsn>
+                    <Nm>Counterparty Seller</Nm>
+                    <Othr>
+                      <Id>UNKNOWN_ID</Id>
+                      <SchmeNm>
+                        <Cd>NOID</Cd>
+                      </SchmeNm>
+                    </Othr>
+                  </Prsn>
                 </Id>
               </AcctOwnr>
             </Sellr>
@@ -91,9 +107,6 @@
                 </DerivInstrmAttrbts>
               </Othr>
             </FinInstrm>
-            <ExctgPrsn>
-              <Clnt>NORE</Clnt>
-            </ExctgPrsn>
             <ExctgPrsn>
               <Clnt>NORE</Clnt>
             </ExctgPrsn>
